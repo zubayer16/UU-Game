@@ -7,7 +7,7 @@ def placePiece(board, coord, piece):
     board[coord[0]][coord[1]] = piece
     return board
 
-
+#code for remove pieces
 def removePiece(board, piece):
     updateBoard(board)
     removeCoord = str(input("Please input piece to remove"))
