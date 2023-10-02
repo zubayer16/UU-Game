@@ -2,8 +2,18 @@
 Building a game for a client in Software Engineering and Project Management Course.
 
 Code Author:
-1. Teodora
-2. Jakob
-3. Johan
-4. Feby
-5. Zubayer
+Teodora  || Jakob  || Johan  || Feby  || Zubayer
+
+## For CLoning this repository use the following command:
+
+1. git clone https://github.com/zubayer16/UU-Game.git
+
+## For pushing your changes to this repository use the following command:
+1. git add --all
+2. git commit -m "First commit"
+3. git branch -M main
+4. git remote add origin https://github.com/zubayer16/UU-Game.git
+5. git push -u origin main
+
+## Before Pushing It is a good practice to fetch/pull
+1. git pull origin
