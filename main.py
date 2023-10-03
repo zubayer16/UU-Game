@@ -3,12 +3,14 @@ import time
 
 
 # Removes a piece, right now you are able to remove from a mill even if the opponent is not in phase 3, this should only be doable if the opponent is in phase 3
-def removePiece(board, piece):
+def removePiece(board, piece, mill_list, phase):
     """
-    Lets the user remove one of the ai's piece
+    Lets the user remove one of the ai's pieces
 
     @param board: The current board
     @param piece: The symbol representing the ai
+    @param mill_list the current active mills of the ai
+    @param phase: The current phase of the player
     @return: The updated board with the ai piece removed
 
 
@@ -19,12 +21,22 @@ def removePiece(board, piece):
     removeCoord = removeCoord.split(',')
     removeCoord[0] = int(removeCoord[0])
     removeCoord[1] = int(removeCoord[1])
-    if board[removeCoord[0]][removeCoord[1]] == piece:
+    # Only in phase 3 it is allowed to remove a piece from a active mill
+
+    if (phase == 3):
+        if board[removeCoord[0]][removeCoord[1]] == piece:
+            board[removeCoord[0]][removeCoord[1]] = '.'
+            print(f"The piece at{removeCoord} is removed\n")
+            return board
+        else:
+            return removePiece(board, piece, mill_list, phase)
+
+    if board[removeCoord[0]][removeCoord[1]] == piece and (removeCoord[0], removeCoord[1]) not in mill_list:
         board[removeCoord[0]][removeCoord[1]] = '.'
         print(f"The piece at{removeCoord} is removed\n")
         return board
     else:
-        return removePiece(board, piece)
+        return removePiece(board, piece, mill_list, phase)
 
 
 # verify the move for phase 1
@@ -95,17 +107,14 @@ def verifyMovePiece(board, playerPiece, chosenPieceCoord, moveCoord, phase):
     return True
 
 
-# Verifies all moves
+# Verifies all moves in all phases
 def verifyMove(phase, board, Playerpiece):
     """
-    Verifies the proposed move by the player during phase 2 & 3
-
+    Verifies the proposed move by the player
+    @param phase: the current phase of the player
     @param board: The current board
-    @param playerPiece: the symbol representing the player
-    @param choosenPieceCoord: The coordinates of the piece the player wants to move
-    @param moveCoord: The coordinates of the move the player wants to perform
-    @param phase: The current phase of the player
-    @return: True if the move is allowed by the rules of the game false otherwise
+    @param Playerpiece: the symbol representing the player
+    @return: The verified move coordinates
 
 
     """
@@ -113,13 +122,13 @@ def verifyMove(phase, board, Playerpiece):
     coord = 0
     while not validMove:
         if (phase == 1):
-            coord = inputCoord2("Please input coordinates for placement in format rownr,columnnr: ")
+            coord = verifyFormat("Please input coordinates for placement in format rownr,columnnr: ")
             validMove = veryifyMovep1(board, coord)
         if (phase == 2):
-            coord = inputCoord4()
+            coord = verifyFormat2()
             validMove = verifyMovePiece(board, Playerpiece, coord[0], coord[1], phase)
         if (phase == 3):
-            coord = inputCoord4()
+            coord = verifyFormat2()
             validMove = verifyMovePiece(board, Playerpiece, coord[0], coord[1], phase)
 
     return coord
@@ -135,7 +144,7 @@ def updateBoard(board):
 
 
 # Takes in one coordinate and checks if it's in the right format
-def inputCoord2(Question):
+def verifyFormat(Question):
     while True:
         coord_input = input(Question)
         coord = coord_input.split(',')
@@ -152,35 +161,36 @@ def inputCoord2(Question):
 
 
 # Takes in two different coordinates, used for phase 2 and 3 which needs 2 sets of coordinates
-def inputCoord4():
-    piece = inputCoord2("Please input coordinates for the chosen piece to move in format rownr,columnnr: ")
-    move = inputCoord2("Please input coordinates for placement in format rownr,columnnr: ")
+def verifyFormat2():
+    piece = verifyFormat("Please input coordinates for the chosen piece to move in format rownr,columnnr: ")
+    move = verifyFormat("Please input coordinates for placement in format rownr,columnnr: ")
     return piece, move
 
 
-# Removes a piece randomly by the ai, also are able to remove a piece from a mill even if the player is not in phase 3, should only be able to do it if the player is phase 3
-
-
 # Moves or places a piece depending on the phase
-def doMove(board, playerMove, playerPiece, phase):
+def doMove(board, move, piece, phase):
+    # playermove is (x,y) if the phase is 1 otherwise (piece,move)
     if (phase == 1):
-        board[playerMove[0]][playerMove[1]] = playerPiece  # In phase 1 we just need to place a piece on the coordinate
+        board[move[0]][move[1]] = piece  # In phase 1 we just need to place a piece on the coordinate
         return board
 
-    chosenPieceCoord = playerMove[0]
-    moveCoord = playerMove[1]
+    chosenPieceCoord = move[0]
+    moveCoord = move[1]
 
-    board[moveCoord[0]][moveCoord[1]] = playerPiece
+    board[moveCoord[0]][moveCoord[1]] = piece
     board[chosenPieceCoord[0]][chosenPieceCoord[1]] = '.'
     return board
 
 
-def aiRemovePiece(board, playerPiece):
+########################## AI CODE
+def aiRemovePiece(board, playerPiece, mills_list, phase):
     """
     Removes a random available piece from the player
 
     @param board: The current board
     @param playerPiece: The symbol representing the player
+    @param mills_list: all of the active player mills
+    @param phase: the current phase of the player
     @return: The updated board with the a player piece removed
 
 
@@ -188,14 +198,23 @@ def aiRemovePiece(board, playerPiece):
     available = []
     for i in range(len(board) - 2):
         for j in range(len(board[i]) - 2):
-            if board[i][j] == playerPiece:
-                available.append([i, j])
-    index = random.randint(0, len(available) - 1)
-    board[available[index][0]][available[index][1]] = '.'
+            if board[i][j] == playerPiece and (i, j):
+                available.append([i, j])  # Finds all the playerpieces on the board
+    # The ai should be able to remove pieces in a active mill if the player is in phase 3 only
+    if phase != 3:
+        for piece_coord in available.copy():
+            if piece_coord in mills_list:
+                available.remove(piece_coord)
+
+    if available:
+        index = random.randint(0, len(available) - 1)
+        board[available[index][0]][available[index][1]] = '.'
+        print(f"the AI removes the piece at {[available[index][0], available[index][1]]} ")
+
     return board
 
 
-def aiSmartMoveP3(board, aiPiece, playerPiece):
+def aiSmartMoveP3(board, aiPiece, playerPiece, AIMills, prevPrevAIMills, playerMills, prevPrevPlayerMills):
     """
     Tries to find a move during phase 3 wich can create a mill for the AI or block the player from creating mill.
     If none of these moves exist it will do a random move.
@@ -203,6 +222,10 @@ def aiSmartMoveP3(board, aiPiece, playerPiece):
     @param board: The current board
     @param aiPiece: The symbol representing the AI
     @param playerPiece: The symbol representing the player
+    @param aiMills: the current mills created by the AI
+    @param prevPrevAIMills the AI mills from two rounds back
+    @param playerMills: The current player mills
+    @param prevPrevPlayerMills: the player mills from two rounds back
     @return: The updated board with the resulting AI move
 
     """
@@ -224,10 +247,10 @@ def aiSmartMoveP3(board, aiPiece, playerPiece):
             temp_board = [row[:] for row in board]  # Create a copy of the board
             temp_board[piece[0]][piece[1]] = '.'  # Move the piece
             temp_board[spot[0]][spot[1]] = aiPiece
-            if hasNewThreeInARow(temp_board, aiPiece):
+            if checkNewMill(temp_board, aiPiece, AIMills, prevPrevAIMills):
                 move = (piece, spot)
                 board = doMove(board, move, aiPiece, phase=3)
-                print(f"AI moves a piece from {piece} to {spot}")
+                print(f"AI moves a piece from {[piece[0], piece[1]]} to {[spot[0], spot[1]]}")
 
                 return board
 
@@ -237,16 +260,16 @@ def aiSmartMoveP3(board, aiPiece, playerPiece):
             temp_board = [row[:] for row in board]  # Create a copy of the board
             temp_board[piece[0]][piece[1]] = '.'  # Move the piece
             temp_board[spot[0]][spot[1]] = playerPiece
-            if hasNewThreeInARow(temp_board, playerPiece):
+            if checkNewMill(temp_board, playerPiece, playerMills, prevPrevPlayerMills):
                 move = (piece, spot)
                 board = doMove(board, move, aiPiece, phase=3)
-                print(f"AI moves a piece from {piece} to {spot}")
+                print(f"AI moves a piece from {[piece[0], piece[1]]} to {[spot[0], spot[1]]}")
                 return board
     board = aiRandomMove(board, aiPiece, 3)  # If no good moves found just use a random move
     return board
 
 
-def aiSmartMoveP2(board, aiPiece, playerPiece):
+def aiSmartMoveP2(board, aiPiece, playerPiece, AIMills, prevPrevAIMills, playerMills, prevPrevPlayerMills):
     """
     Tries to find a move during phase 2 wich can create a mill for the AI or block the player from creating mill.
     If none of these moves exist it will do a random move.
@@ -254,6 +277,10 @@ def aiSmartMoveP2(board, aiPiece, playerPiece):
     @param board: The current board
     @param aiPiece: The symbol representing the AI
     @param playerPiece: The symbol representing the player
+    @param aiMills: the current mills created by the AI
+    @param prevPrevAIMills the AI mills from two rounds back
+    @param playerMills: The current player mills
+    @param prevPrevPlayerMills: the player mills from two rounds back
     @return: The updated board with the resulting AI move.
 
 
@@ -278,10 +305,10 @@ def aiSmartMoveP2(board, aiPiece, playerPiece):
                 temp_board = [row[:] for row in board]  # Create a copy of the board
                 temp_board[piece[0]][piece[1]] = '.'  # Move the piece
                 temp_board[spot[0]][spot[1]] = aiPiece
-                if hasNewThreeInARow(temp_board, aiPiece):
+                if checkNewMill(temp_board, aiPiece, AIMills, prevPrevAIMills):
                     move = (piece, spot)
                     board = doMove(board, move, aiPiece, phase=2)
-                    print(f"AI moves a piece from {piece} to {spot}")
+                    print(f"AI moves a piece from {[piece[0], piece[1]]} to {[spot[0], spot[1]]}")
                     return board
 
     # Check if we need to block the opponent from completing a mill
@@ -292,27 +319,32 @@ def aiSmartMoveP2(board, aiPiece, playerPiece):
                 temp_board = [row[:] for row in board]  # Create a copy of the board
                 temp_board[piece[0]][piece[1]] = '.'  # Move the piece
                 temp_board[spot[0]][spot[1]] = playerPiece
-                if hasNewThreeInARow(temp_board, playerPiece):
+                if checkNewMill(temp_board, playerPiece, playerMills, prevPrevPlayerMills):
                     move = (piece, spot)
                     board = doMove(board, move, aiPiece, phase=2)
-                    print(f"AI moves a piece from {piece} to {spot}")
+                    print(f"AI moves a piece from {[piece[0], piece[1]]} to {[spot[0], spot[1]]}")
                     return board
 
     # If no good moves found, just use a random move
     return aiRandomMove(board, aiPiece, 2)
 
 
-def aiSmartMoveP1(board, aiPiece, playerPiece):
+def aiSmartMoveP1(board, aiPiece, playerPiece, AIMills, prevPrevAIMills, playerMills, prevPrevPlayerMills):
     """
     Tries to find a move during phase 1 wich can create a mill for the AI or block the player from creating mill.
     If none of these moves exist it will do a random move.
     @param board: The current board
-    @param aiPiece: The symbol reprenseting the AI
+    @param aiPiece: The symbol representing the AI
     @param playerPiece: The symbol representing the player
+    @param aiMills: the current mills created by the AI
+    @param prevPrevAIMills the AI mills from two rounds back
+    @param playerMills: The current player mills
+    @param prevPrevPlayerMills: the player mills from two rounds back
     @return: The updated board with the resulting AI move.
 
 
     """
+
     empty_spots = []
 
     # Find all empty spots on the board
@@ -325,46 +357,49 @@ def aiSmartMoveP1(board, aiPiece, playerPiece):
     for spot in empty_spots:
         temp_board = [row[:] for row in board]  # Create a copy of the board
         temp_board[spot[0]][spot[1]] = aiPiece
-        if hasNewThreeInARow(temp_board, aiPiece):
+        if checkNewMill(temp_board, aiPiece, AIMills, prevPrevAIMills):
             board[spot[0]][spot[1]] = aiPiece
-            print(f"AI places a piece at {spot}")
+            print(f"AI places a piece at {[spot[0], spot[1]]}")
             return board
 
     # Check if the ai can block the player from creating a mill
     for spot in empty_spots:
         temp_board = [row[:] for row in board]  # Create a copy of the board
         temp_board[spot[0]][spot[1]] = playerPiece
-        if hasNewThreeInARow(temp_board, playerPiece):
+        if checkNewMill(temp_board, playerPiece, playerMills, prevPrevPlayerMills):
             board[spot[0]][spot[1]] = aiPiece
-            print(f"AI places a piece at {spot}")
+            print(f"AI places a piece at {[spot[0], spot[1]]}")
             return board
-
     # If no good moves found, just use a random move
     board = aiRandomMove(board, aiPiece, 1)
     return board
 
 
 # Dummy function, needs to be implemented with aleast some calculation on how the ai should act
-def generateSmartMove(board, aiPiece, playerPiece, phase):
+def generateSmartMove(board, aiPiece, playerPiece, phase, AIMills, prevPrevAIMills, playerMills, prevPrevPlayerMills):
     """
     Creates a calculated move by the AI depending on the current phase of the AI.
     @param board: The current board
     @param aiPiece: The symbol reprenseting the AI
     @param playerPiece: The symbol representing the player
     @param phase: the current phase of AI
+    @param aiMills: the current mills created by the AI
+    @param prevPrevAIMills the AI mills from two rounds back
+    @param playerMills: The current player mills
+    @param prevPrevPlayerMills: the player mills from two rounds back
     @return: The updated board with the resulting AI move.
 
 
     """
 
     if (phase == 1):
-        board = aiSmartMoveP1(board, aiPiece, playerPiece)
+        board = aiSmartMoveP1(board, aiPiece, playerPiece, AIMills, prevPrevAIMills, playerMills, prevPrevPlayerMills)
 
     if (phase == 2):
-        board = aiSmartMoveP2(board, aiPiece, playerPiece)
+        board = aiSmartMoveP2(board, aiPiece, playerPiece, AIMills, prevPrevAIMills, playerMills, prevPrevPlayerMills)
 
     if (phase == 3):
-        board = aiSmartMoveP3(board, aiPiece, playerPiece)
+        board = aiSmartMoveP3(board, aiPiece, playerPiece, AIMills, prevPrevAIMills, playerMills, prevPrevPlayerMills)
 
     return board
 
@@ -446,7 +481,7 @@ def aiRandomMoveP2(board, aiPiece):
             move_coord = random.choice(possible_moves)
             move = (piece_to_move, move_coord)
             board = doMove(board, move, aiPiece, phase=2)
-            print(f"AI moves a piece from {piece_to_move} to {move_coord}")
+            print(f"AI moves a piece from {[piece_to_move[0], piece_to_move[1]]} to {[move_coord[0], move_coord[1]]}")
     # Perform a random move out of the possible moves
     return board
 
@@ -474,12 +509,21 @@ def aiRandomMoveP3(board, aiPiece):
         if board[ycoord][xcoord] == '.':
             move = (piece, (xcoord, ycoord))
             board = doMove(board, move, aiPiece, phase=3)
-            print(f"AI moves a piece from {piece} to {(xcoord, ycoord)}")
+            print(f"AI moves a piece from {[piece[0], piece[1]]} to {[xcoord, ycoord]}")
             return board
 
 
 # Handle all random movements needed for all phases
 def aiRandomMove(board, aiPiece, aiPhase):
+    """
+    Makes the ai perform a random move for the right phase
+    @param board: The current board
+    @param aiPiece: The symbol representing the AI
+    @param aiPhase: The current phase of the AI
+    @return: The updated board with the resulting AI move.
+
+
+    """
     if (aiPhase == 1):
         move = aiRandomMoveP1(board, aiPiece)
     if (aiPhase == 2):
@@ -490,18 +534,40 @@ def aiRandomMove(board, aiPiece, aiPhase):
 
 
 # Checks the difficulity of the AI. Easy AI always uses random moves, medium ai uses 1/4 calculated moves rest random, hard uses 1/2 calculated and rest random.
-def aiMove(board, playerpiece, aiPiece, aiPhase, difficulty, rounds):
+def aiMove(board, playerpiece, aiPiece, aiPhase, difficulty, rounds, AIMills, prevPrevAIMills, playerMills,
+           prevPrevPlayerMills):
+    """
+    Makes the ai perform a move depending on the difficulity. Easy will always perform random moves meanwhile medium uses 1/4 smart moves and hard 1/2 smart moves, the rest are random.
+    @param board: The current board
+    @param playerpiece: The symbol representing the player
+    @param aiPiece: The symbol representing the AI
+    @param aiPhase: The current phase of the AI
+    @param difficulity: the chosen difficulity of the AI
+    @param rounds: The current round of the game
+    @param aiMills: the current mills created by the AI
+    @param prevPrevAIMills the AI mills from two rounds back
+    @param playerMills: The current player mills
+    @param prevPrevPlayerMills: the player mills from two rounds back
+    @return: The updated board with the resulting AI move.
+
+
+    """
     newBoard = 0
     if (difficulty == 2):
         if (rounds % 4 == 0):
-            newBoard = generateSmartMove(board, aiPiece, playerpiece, aiPhase)
+            newBoard = generateSmartMove(board, aiPiece, playerpiece, aiPhase, AIMills, prevPrevAIMills, playerMills,
+                                         prevPrevPlayerMills)
             return newBoard
     if (difficulty == 3):
         if (rounds % 2 == 0):
-            newBoard = generateSmartMove(board, aiPiece, playerpiece, aiPhase)
+            newBoard = generateSmartMove(board, aiPiece, playerpiece, aiPhase, AIMills, prevPrevAIMills, playerMills,
+                                         prevPrevPlayerMills)
             return newBoard
     newBoard = aiRandomMove(board, aiPiece, aiPhase)  # Easy always uses random moves
     return newBoard
+
+
+###################### AI CODE
 
 
 # Just checks if one only has two pieces left
@@ -515,75 +581,41 @@ def checkWinner(board, piece):
 
 
 # Returns 0 for draw, 1 for player and 2 for ai
+def gameLoop(board, playerPiece, opponentPiece, difficulty):
+    """
+
+    Plays a game of UUgame until a result is made
+    @param rounds: The current round of the game
+    @param board: The current board
+    @param playerpiece: The symbol representing the player
+    @param opponentPiece: The symbol representing the opponnent, human or AI
+    @param difficulity: the chosen difficulity of the AI
+    @return: 0 if a draw is made, 1 if the player wins, 2 if the AI wins
 
 
-def gameLoop(rounds, board, playerPiece, opponentPiece, difficulty):
+    """
+    rounds = 0
     aiPhase = 1
     playerPhase = 1
-    piecestoPlace = 12
-    aiPiecestoplace = 12
-    pieceCount = 9
-    aipieceCount = 9
-    while (rounds < 200):
-        updateBoard(board)
-        rounds = rounds + 1
-        prev_board = [row[:] for row in board]
-        playerMove = verifyMove(playerPhase, board, playerPiece)
-        board = doMove(board, playerMove, playerPiece, playerPhase)
-        piecestoPlace = piecestoPlace - 1
-
-        # player enters phase 2
-        if piecestoPlace <= 0 and pieceCount > 1:
-            playerPhase = 2
-        # player enters phase 3
-        elif piecestoPlace <= 0 and pieceCount < 1:
-            playerPhase = 3
-
-        if hasNewThreeInARow(board,
-                             playerPiece):
-            removePiece(board, opponentPiece)
-            aipieceCount = aipieceCount - 1
-            if not (aiPhase == 1):
-                # Checks to see if after removing the piece that ai only has 2 left
-                if (checkWinner(board, opponentPiece)):
-                    return 1
-
-        # AI opponent's turn
-        # print("AI is making a move...")
-        time.sleep(1)  # Simulate AI thinking time
-        board = aiMove(board, playerPiece, opponentPiece, aiPhase, difficulty, rounds)
-        aiPiecestoplace = aiPiecestoplace - 1
-        # ai enters phase 2
-        if aiPiecestoplace <= 0 and aipieceCount > 1:
-            aiPhase = 2
-        # ai enters phase 3
-        elif aiPiecestoplace <= 0 and aipieceCount < 1:
-            aiPhase = 3
-
-        # Check if the AI opponent has formed a new three-in-a-row
-        if hasNewThreeInARow(board, opponentPiece):
-            aiRemovePiece(board, playerPiece)
-            pieceCount = pieceCount - 1
-            if not (playerPhase == 1):
-                if (checkWinner(board, playerPiece)):
-                    return 2
-
-    return 0  # The game took too many turns and ended in a draw
-
-
-def gameLoop2(rounds, board, playerPiece, opponentPiece, difficulty):
-    aiPhase = 1
-    playerPhase = 1
-    piecestoPlace = 4
-    aiPiecestoplace = 4
-    pieceCount = 9
-    aipieceCount = 9
+    piecestoPlace = 12  # Pieces the player can place in phase 1
+    aiPiecestoplace = 12  # Pieces the AI can place in phase 1
+    pieceCount = 9  # How many pieces needed to be removed from player so that they enter phase 3
+    aipieceCount = 9  # How many pieces needed to be removed from the AI so that they enter phase 3
+    # Setup the game state
 
     playerMills = []
+    prevPlayerMills = []  # The players mill two turns ago, used to make sure that the same mill can not be made in consecutive turns
+    prevPrevPlayerMills = []  # The players mills one turn ago
+
     aiMills = []
+    prevAIMills = []  # The AI mills two turns ago, used to make sure that the same mill can not be made in consecutive turns
+    prevPrevAIMills = []  # The AI mills one turn ago
+
     while (rounds < 200):
         updateBoard(board)
         rounds = rounds + 1
+        prevPrevPlayerMills = prevPlayerMills.copy()
+        prevPlayerMills = playerMills.copy()
         playerMove = verifyMove(playerPhase, board, playerPiece)
         board = doMove(board, playerMove, playerPiece, playerPhase)
         playerMills = checkDestroyedMills(board, playerPiece,
@@ -597,12 +629,12 @@ def gameLoop2(rounds, board, playerPiece, opponentPiece, difficulty):
         elif piecestoPlace <= 0 and pieceCount < 1:
             playerPhase = 3
 
-        new_mill = checkNewMill(board, playerPiece, playerMills)
+        new_mill = checkNewMill(board, playerPiece, playerMills, prevPrevPlayerMills)
 
         if new_mill:
-            playerMills = updateMillList(board, playerPiece, playerMills)
+            playerMills = updateMillList(board, playerPiece, playerMills, prevPrevPlayerMills)
 
-            removePiece(board, opponentPiece)
+            removePiece(board, opponentPiece, aiMills, playerPhase)
             aipieceCount = aipieceCount - 1
             if not (aiPhase == 1):
                 # Checks to see if after removing the piece that ai only has 2 left
@@ -610,9 +642,12 @@ def gameLoop2(rounds, board, playerPiece, opponentPiece, difficulty):
                     return 1
 
         # AI opponent's turn
-        # print("AI is making a move...")
         time.sleep(1)  # Simulate AI thinking time
-        board = aiMove(board, playerPiece, opponentPiece, aiPhase, difficulty, rounds)
+        prevPrevAIMills = prevAIMills.copy()
+        prevAIMills = aiMills.copy()
+
+        board = aiMove(board, playerPiece, opponentPiece, aiPhase, difficulty, rounds, aiMills, prevPrevAIMills,
+                       playerMills, prevPrevPlayerMills)
         aiPiecestoplace = aiPiecestoplace - 1
         # ai enters phase 2
         if aiPiecestoplace <= 0 and aipieceCount > 1:
@@ -620,11 +655,11 @@ def gameLoop2(rounds, board, playerPiece, opponentPiece, difficulty):
         # ai enters phase 3
         elif aiPiecestoplace <= 0 and aipieceCount < 1:
             aiPhase = 3
-        new_mill = checkNewMill(board, opponentPiece, aiMills)
+        new_mill = checkNewMill(board, opponentPiece, aiMills, prevPrevAIMills)
         # Check if the AI opponent has formed a new three-in-a-row
         if new_mill:
             aiMills = updateMillList(board, opponentPiece, aiMills)
-            aiRemovePiece(board, playerPiece)
+            aiRemovePiece(board, playerPiece, playerMills, playerPhase)
             pieceCount = pieceCount - 1
             if not (playerPhase == 1):
                 if (checkWinner(board, playerPiece)):
@@ -633,27 +668,16 @@ def gameLoop2(rounds, board, playerPiece, opponentPiece, difficulty):
     return 0  # The game took too many turns and ended in a draw
 
 
-# Fix consectuive mills and it does two mills if 4 in row
-def hasNewThreeInARow(board, piece):
-    # Check for new horizontal or vertical three-in-a-row
-    mills = []
-    for i in range(len(board) - 2):
-        for j in range(len(board[i]) - 2):
-            if (board[i][j] == piece and board[i + 1][j] == piece and board[i + 2][j] == piece) or \
-                    (board[i][j] == piece and board[i][j + 1] == piece and board[i][j + 2] == piece):
-                mill = [[i, j], [i + 1, j], [i + 2, j]] if board[i][j] == piece else [[i, j], [i, j + 1], [i, j + 2]]
-                mills.append(mill)
-
-    # Check if these mills are already present on the previous board
-    unique_mills = [mill for mill in mills if mill not in prev_board]
-
-    if unique_mills:
-        return unique_mills[0]  # Return the first unique mill found
-    else:
-        return None
-
-
 def findMills(board, piece):
+    """
+
+    Finds all possible mills on the board
+    @param board: The current board
+    @param piece: the symbol to check for mills
+    @return: A list of all the possible mills
+
+
+    """
     mills = []
 
     # Check for horizontal mills
@@ -672,6 +696,15 @@ def findMills(board, piece):
 
 
 def addMillToList(mills_list, new_mill):
+    """
+
+    Adds a mill to the mill as long none of the coordinates are already in the list
+    @param mills_list: All of the current mills
+    @param new_mill: a mill
+    @return: The mill list with a new mill list added if it's new
+
+
+    """
     # Check if any of the coordinates of the new mill are already in the list
     for mill in mills_list:
         for coord in new_mill:
@@ -683,24 +716,55 @@ def addMillToList(mills_list, new_mill):
     return mills_list
 
 
-def updateMillList(board, piece, mill_list):
+def updateMillList(board, piece, mill_list, prev_mill_list):
+    """
+
+    Adds a mill to the mill as long none of the coordinates are already in the list
+    @param board: the current board
+    @param mills_list: All of the current mills
+    @param piece: the symbol to check for mills
+    @return: The mill list with a new mill list added if it's new
+
+
+    """
     new_mills = findMills(board, piece)
     if new_mills:
         for mill in new_mills:
-            mill_list = addMillToList(mill_list, mill)
+            if mill not in prev_mill_list:
+                mill_list = addMillToList(mill_list, mill)
 
     return mill_list
 
 
-def checkNewMill(board, piece, mill_list):
+def checkNewMill(board, piece, mill_list, prev_mill_list):
+    """
+
+    Checks if a new mill will be added to the list
+    @param board: the current board
+    @param piece: the symbol to check for mills
+    @param mills_list: All of the current mills
+    @return: True if a new mill will be added to the list, false otherwise
+
+
+    """
     tem_list = mill_list.copy()
-    tem_list = updateMillList(board, piece, tem_list)
+    tem_list = updateMillList(board, piece, tem_list, prev_mill_list)
     if (len(tem_list) > len(mill_list)):
         return True
     return False
 
 
 def checkDestroyedMills(board, piece, mill_list):
+    """
+
+    Checks if any mills have been broken and updates the mill list accordingly
+    @param board: the current board
+    @param piece: the symbol to check for mills
+    @param mills_list: All of the current mills
+    @return: The mill list with curent mills
+
+
+    """
     valid_mills = []  # Create a list to store valid mills
 
     for mill in mill_list:
@@ -721,6 +785,14 @@ def checkDestroyedMills(board, piece, mill_list):
 
 
 def resultHandler(result):
+    """
+
+    Handles the result of the game accordingly and allow the player to play again
+    @param result: Result of the game
+    @return: The inputted choice of playing again or quitting by the player
+
+
+    """
     if (result == 0):
         print("The game has ended in a draw")
     if (result == 1):
@@ -763,8 +835,7 @@ def startGame():
         print("Please choose X or O for the piece to play")
 
     board = [['.' for _ in range(10)] for _ in range(10)]
-    rounds = 0
-    result = gameLoop2(rounds, board, choosenPiece, aiPiece, difficulty)
+    result = gameLoop(board, choosenPiece, aiPiece, difficulty)
 
     return result
 
@@ -799,6 +870,4 @@ def startScreen():
 
 
 # Initialize the previous board state
-prev_board = [['.' for _ in range(10)] for _ in range(10)]
-
 startScreen()
